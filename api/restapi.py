@@ -151,8 +151,12 @@ class OpenBazaarAPI(APIResource):
             self.kserver.resolve(unhexlify(request.args["guid"][0])).addCallback(get_node)
         else:
             p = Profile(self.db).get()
-            temp_handle = self.db.ProfileStore().get_temp_handle()
-            parse_profile(p, None if temp_handle == "" else temp_handle)
+            if not p.HasField("encryption_key"):
+                request.write(json.dumps({}, indent=4))
+                request.finish()
+            else:
+                temp_handle = self.db.ProfileStore().get_temp_handle()
+                parse_profile(p, None if temp_handle == "" else temp_handle)
         return server.NOT_DONE_YET
 
     @GET('^/api/v1/get_listings')
