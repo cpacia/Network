@@ -34,6 +34,7 @@ from protos.objects import FULL_CONE, RESTRICTED, SYMMETRIC
 from twisted.internet import reactor, task
 from twisted.python import log, logfile
 from txws import WebSocketFactory
+from threading import Thread
 
 
 def run(*args):
@@ -112,26 +113,32 @@ def run(*args):
 
         interface = "0.0.0.0" if ALLOWIP not in ("127.0.0.1", "0.0.0.0") else ALLOWIP
 
-        # websockets api
         authenticated_sessions = []
-        ws_api = WSFactory(mserver, kserver, only_ip=ALLOWIP)
-        ws_factory = AuthenticatedWebSocketFactory(ws_api)
-        ws_factory.authenticated_sessions = authenticated_sessions
-        ws_factory.protocol = AuthenticatedWebSocketProtocol
-        if SSL:
-            reactor.listenSSL(WSPORT, ws_factory,
-                              ChainedOpenSSLContextFactory(SSL_KEY, SSL_CERT), interface=interface)
-        else:
-            reactor.listenTCP(WSPORT, ws_factory, interface=interface)
+        ws_api = None
+        # websockets api
+        def start_websocket_api():
+            global ws_api
+            ws_api = WSFactory(mserver, kserver, only_ip=ALLOWIP)
+            ws_factory = AuthenticatedWebSocketFactory(ws_api)
+            ws_factory.authenticated_sessions = authenticated_sessions
+            ws_factory.protocol = AuthenticatedWebSocketProtocol
+            if SSL:
+                reactor.listenSSL(WSPORT, ws_factory,
+                                  ChainedOpenSSLContextFactory(SSL_KEY, SSL_CERT), interface=interface)
+            else:
+                reactor.listenTCP(WSPORT, ws_factory, interface=interface)
+        Thread(target=start_websocket_api, args=()).start()
 
         # rest api
-        rest_api = RestAPI(mserver, kserver, protocol, username, password,
-                           authenticated_sessions, only_ip=ALLOWIP)
-        if SSL:
-            reactor.listenSSL(RESTPORT, rest_api,
-                              ChainedOpenSSLContextFactory(SSL_KEY, SSL_CERT), interface=interface)
-        else:
-            reactor.listenTCP(RESTPORT, rest_api, interface=interface)
+        def start_rest_api():
+            rest_api = RestAPI(mserver, kserver, protocol, username, password,
+                               authenticated_sessions, only_ip=ALLOWIP)
+            if SSL:
+                reactor.listenSSL(RESTPORT, rest_api,
+                                  ChainedOpenSSLContextFactory(SSL_KEY, SSL_CERT), interface=interface)
+            else:
+                reactor.listenTCP(RESTPORT, rest_api, interface=interface)
+        Thread(target=start_rest_api, args=()).start()
 
         # blockchain
         if TESTNET:
