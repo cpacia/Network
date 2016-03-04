@@ -114,9 +114,9 @@ def run(*args):
         interface = "0.0.0.0" if ALLOWIP not in ("127.0.0.1", "0.0.0.0") else ALLOWIP
 
         authenticated_sessions = []
-        ws_api = None
         # websockets api
         def start_websocket_api():
+            # pylint: disable=W0601
             global ws_api
             ws_api = WSFactory(mserver, kserver, only_ip=ALLOWIP)
             ws_factory = AuthenticatedWebSocketFactory(ws_api)
